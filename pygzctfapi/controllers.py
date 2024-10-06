@@ -49,8 +49,25 @@ class GameController(BaseController):
         for game in games:
             game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
         return games
-    
-    def get_by_title(self, title: str) -> models.Game:
+
+    def get(self, id: int = None, title: str = None) -> models.Game:
+        """
+        Get a game by its ID or title.
+
+        Args:
+            id (int, optional): The ID of the game. Defaults to None.
+            title (str, optional): The title of the game. Defaults to None.
+
+        Returns:
+            models.Game: The game
+        """
+        if id is None and title is None:
+            raise ValueError("Either id or title must be provided.")
+        if id is not None:
+            return self._get_by_id(id)
+        return self._get_by_title(title)
+
+    def _get_by_title(self, title: str) -> models.Game:
         """
         Get a game by its title.
 
@@ -58,7 +75,7 @@ class GameController(BaseController):
             title (str): The title of the game
 
         Returns:
-            models.Game: The game with the given title
+            models.Game: The game
 
         Raises:
             exceptions.GameNotFoundError: If the game is not found
@@ -67,17 +84,17 @@ class GameController(BaseController):
         for game in games:
             if game.title == title:
                 return self.get(game.id)
-        raise exceptions.GameNotFoundError(f"Game {title} not found.")
+        raise exceptions.GameNotFoundError(f"Game with title \"{title}\" not found.")
     
-    def get(self, id: int) -> models.Game:
+    def _get_by_id(self, id: int) -> models.Game:
         """
-        Get a game by its id.
+        Get a game by its ID.
 
         Args:
-            id (int): The id of the game
+            id (int): The ID of the game
 
         Returns:
-            models.Game: The game with the given id
+            models.Game: The game
 
         Raises:
             exceptions.GameNotFoundError: If the game is not found
