@@ -10,8 +10,8 @@ def test_init():
     gzapi = GZAPI(url)
     #games
     ic(games := gzapi.game.list())
-    ic(game_by_name := gzapi.game.get_by_name('Eternal Games'))
-    ic(game_by_id := gzapi.game.get(1))
+    ic(game_by_name := gzapi.game.get_by_title('Eternal Games'))
+    ic(game_by_id := gzapi.game.get(2))
     
     #--- Test Authenticated
     gzapi = GZAPI(url, login, password)
