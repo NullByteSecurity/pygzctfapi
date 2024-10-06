@@ -5,15 +5,17 @@ url = "https://games.nullbyte.pro/"
 login = 'TEST'
 password = 'T3STacc0UNT_j0Kkw3U!'
 
-def test_init():
+gzapi_unauth = GZAPI(url)
+gzapi = GZAPI(url, login, password)
+
+def test_game():
     print()
     #--- Test UNauthenticated
-    gzapi = GZAPI(url)
-    #games
-    ic(games := gzapi.game.list())
-    ic(game_by_name := gzapi.game.get(title='Eternal Games'))
-    ic(game_by_id := gzapi.game.get(2))
-    
+    ic(games := gzapi_unauth.game.list())
+    ic(games[0].upgrade())
+    ic(game_by_name := gzapi_unauth.game.get(title='Eternal Games'))
+    ic(game_by_id := gzapi_unauth.game.get(2))
+
+def test_account():
     #--- Test Authenticated
-    gzapi = GZAPI(url, login, password)
     ic(profile := gzapi.account.profile())

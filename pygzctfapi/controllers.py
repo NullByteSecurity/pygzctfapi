@@ -48,6 +48,7 @@ class GameController(BaseController):
         games = [models.GameSummary.from_dict(game) for game in response.json()]
         for game in games:
             game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
+            game.set_gzapi(self._gzapi)
         return games
 
     def get(self, id: int = None, title: str = None) -> models.Game:
@@ -106,7 +107,6 @@ class GameController(BaseController):
         game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
         return game
         
-
 class AccountController(BaseController):
     def __init__(self, gzapi):
         """
