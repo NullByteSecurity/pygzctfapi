@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+from typing import List
+from pygzctfapi import variables
 
 
 @dataclass
@@ -153,3 +155,35 @@ class Profile(BaseModel):
             return False
 
         return self.userId == other.userId
+
+@dataclass
+class Notice(BaseModel):
+    id: int
+    time: datetime
+    type: str
+    values: List[str]
+
+    @staticmethod
+    def from_dict(data: dict) -> 'Notice':
+        """Creates a Notice object from a dictionary."""
+        return Notice(
+            id=data['id'],
+            time=datetime.fromisoformat(data['time'].rstrip('Z')),
+            type=data['type'],
+            values=data['values']
+        )
+    
+    @property
+    def message(self) -> str:
+        """Returns the message of the notice."""
+        match self.type:
+            case 'Normal':
+                return variables.NOTICES_TEXTS[self.type].format(notice=self.values[0])
+            case 'NewChallenge':
+                return variables.NOTICES_TEXTS[self.type].format(challenge=self.values[0])
+            case "NewHint":
+                return variables.NOTICES_TEXTS[self.type].format(challenge=self.values[0])
+            case _ if self.type.endswith('Blood'):
+                return variables.NOTICES_TEXTS[self.type].format(team=self.values[0], blood=self.type[:-5].lower(), challenge=self.values[1])
+            case _:
+                return variables.NOTICES_TEXTS['_'].format(type=self.type, values=' '.join(self.values))

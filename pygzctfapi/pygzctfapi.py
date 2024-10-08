@@ -18,13 +18,16 @@ class GZAPI():
 
         Raises:
             exceptions.AuthenticationError: If authentication fails.
+            ValueError: If url is not a valid URL.
         """
-        self._url = utils.domain_to_url(url)
+        if not utils.validate_url(url):
+            raise ValueError("Given platform URL is not valid.")
+        self._url = url + ('/' if url[-1] != '/' else '')
         self._credentials = CREDSTUPLE(login, password) if login and password else None
         self._client = httpx.Client()
         self._client.headers= {
-            'authority': utils.url_to_domain(self.platform_url),
-            'origin': f'{self.platform_url[:-1]}',
+            'authority': utils.url_to_domain(url),
+            'origin': f'{utils.domain_to_url(url, enclosing=False)}',
         }
         self._client.headers.update(constants.DEFAULT_REQUEST_HEADERS)
         if self._credentials is not None:

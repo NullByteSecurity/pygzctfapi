@@ -19,3 +19,5 @@ def test_game():
 def test_account():
     #--- Test Authenticated
     ic(profile := gzapi.account.profile())
+    ic(notices := gzapi.game.notices(1))
+    ic([notice.message for notice in notices])
