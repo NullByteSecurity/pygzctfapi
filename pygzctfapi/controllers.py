@@ -77,8 +77,6 @@ class GameController(BaseController):
     def notices(self, gameId: int) -> List[models.Notice]:
         response = self._gzapi._client.get(self._build_url(str(gameId), '/notices'), headers=self._gzapi._get_referer(f'games/{gameId}/challenges'))
         exceptions.Raiser.raise_for_status(response)
-        from icecream import ic
-        ic(response.url)
         notices = [models.Notice.from_dict(notice) for notice in response.json()]
         return notices
     
