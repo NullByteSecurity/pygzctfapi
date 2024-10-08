@@ -4,6 +4,7 @@ from pygzctfapi.misc import storages
 def test_storages():
     RedisStorage = storages.RedisStorage()
     PlyvelStorage = storages.PlyvelStorage("/dev/shm/pygzctfapi_test.plyvel")
+    InMemoryStorage = storages.InMemoryStorage()
     
     test_dict = {123: 456, "hello": "world", "list": [4, 5, 6], "dict": {"key": "value"}}
     test_list = [1, 2, 334, "qwerty", ["hello", "world"], {"key": "value"}]
@@ -73,3 +74,34 @@ def test_storages():
 
     PlyvelStorage.close()
     assert PlyvelStorage.closed
+    
+    InMemoryStorage.put("test_dict", test_dict)
+    InMemoryStorage.put("test_list", test_list)
+    InMemoryStorage.put("test_string", test_string)
+    InMemoryStorage.put("test_int", test_int)
+    InMemoryStorage.put("test_float", test_float)
+    InMemoryStorage.put("test_bytes", test_bytes)
+    
+    assert InMemoryStorage.get("test_dict") == test_dict
+    assert InMemoryStorage.get("test_list") == test_list
+    assert InMemoryStorage.get("test_string") == test_string
+    assert InMemoryStorage.get("test_int") == test_int
+    assert InMemoryStorage.get("test_float") == test_float
+    assert InMemoryStorage.get("test_bytes") == test_bytes
+    
+    InMemoryStorage.delete("test_dict")
+    InMemoryStorage.delete("test_list")
+    InMemoryStorage.delete("test_string")
+    InMemoryStorage.delete("test_int")
+    InMemoryStorage.delete("test_float")
+    InMemoryStorage.delete("test_bytes")
+    
+    assert InMemoryStorage.get("test_dict") is None    
+    assert InMemoryStorage.get("test_list") is None
+    assert InMemoryStorage.get("test_string") is None
+    assert InMemoryStorage.get("test_int") is None
+    assert InMemoryStorage.get("test_float") is None
+    assert InMemoryStorage.get("test_bytes") is None
+
+    InMemoryStorage.close()
+    assert InMemoryStorage.closed

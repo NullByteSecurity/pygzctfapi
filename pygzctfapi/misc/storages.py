@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Union, Optional
 from threading import Lock
 from pygzctfapi import exceptions
+from copy import deepcopy
 
 try:
     import redis
@@ -344,3 +345,108 @@ class PlyvelStorage(BytesStorageBase):
             bool: True if the connection is closed, False otherwise.
         """
         return self._db.closed
+
+class InMemoryStorage:
+    
+    def __init__(self):
+        """
+        Initialize an in-memory storage using a Python dictionary.
+        """
+        self._store = {}
+        self._lock = Lock()
+    
+    def _get(self, key: Any) -> Optional[Any]:
+        """
+        Get the value from the in-memory storage. Left for backward compatibility.
+        """
+        return self.get(key)
+    
+    def _put(self, key: Any, value: Any) -> None:
+        """
+        Store the value in the in-memory storage. Left for backward compatibility.
+        """
+        self.put(key, value)
+    
+    def _delete(self, key: Any) -> None:
+        """
+        Delete the key from the in-memory storage. Left for backward compatibility.
+        """
+        self.delete(key)
+
+    def get(self, key: Any) -> Optional[Any]:
+        """
+        Get the value from the in-memory storage.
+
+        Args:
+            key (Any): The key to retrieve the value for.
+
+        Returns:
+            Optional[Any]: The value associated with the key, or None if the key does not exist.
+        """
+        with self._lock:
+            return self._store.get(key, None)
+
+    def put(self, key: Any, value: Any) -> None:
+        """
+        Store the value in the in-memory storage.
+
+        Args:
+            key (Any): The key to associate the value with.
+            value (Any): The value to store.
+        """
+        with self._lock:
+            self._store[key] = deepcopy(value)
+
+    def delete(self, key: Any) -> None:
+        """
+        Delete the key from the in-memory storage.
+
+        Args:
+            key (Any): The key to delete.
+        """
+        with self._lock:
+            if key in self._store:
+                del self._store[key]
+    
+    def exists(self, key: Any) -> bool:
+        """
+        Check if the key exists in the in-memory storage.
+
+        Args:
+            key (Any): The key to check.
+
+        Returns:
+            bool: True if the key exists, False otherwise.
+        """
+        with self._lock:
+            return key in self._store
+
+    def prepare_key(self, key: Any) -> Any:
+        """
+        Just return the key as-is. This is a no-op for in-memory storage.
+        """
+        return key
+
+    def prepare_value(self, value: Any) -> Any:
+        """
+        Just return the value as-is. This is a no-op for in-memory storage.
+        """
+        return value
+    
+    def close(self) -> None:
+        """
+        Close the in-memory storage. Simply clears the store.
+        """
+        with self._lock:
+            self._store.clear()
+    
+    @property
+    def closed(self) -> bool:
+        """
+        Check if the in-memory storage is closed. Simply checks if the store is empty.
+
+        Returns:
+            bool: True if the storage is closed, False otherwise.
+        """
+        with self._lock:
+            return not bool(self._store)
