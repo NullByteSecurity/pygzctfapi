@@ -1,4 +1,5 @@
 import msgpack
+import sqlite3
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Union, Optional
 from threading import Lock
@@ -14,7 +15,7 @@ try:
 except ImportError:
     plyvel = None
 
-class BytesStorageBase(ABC):
+class ByteStorageBase(ABC):
 
     def get(self, key: str) -> Union[Dict, List, str, int, bytes, float]:
         """
@@ -175,7 +176,8 @@ class BytesStorageBase(ABC):
         """
         pass
 
-class RedisStorage(BytesStorageBase):
+#TODO: Use Redis native datatypes instead of msgpack (should more efficient)
+class RedisStorage(ByteStorageBase):
 
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0, password: Optional[str] = None):
         """
@@ -262,7 +264,7 @@ class RedisStorage(BytesStorageBase):
         except (redis.ConnectionError, redis.TimeoutError):
             return False
 
-class PlyvelStorage(BytesStorageBase):
+class PlyvelStorage(ByteStorageBase):
 
     def __init__(self, db_path: str, create_if_missing: bool = True):
         """
@@ -450,3 +452,122 @@ class InMemoryStorage:
         """
         with self._lock:
             return not bool(self._store)
+
+class SQLiteStorage(ByteStorageBase):
+    
+    def __init__(self, db_path: str):
+        """
+        Initialize an SQLiteStorage object with the given database path.
+        Hint: If you want to store DB in memory, use 'db_path' = '/dev/shm/...' (Linux)
+
+        Args:
+            db_path (str): The path to the SQLite database file.
+
+        Raises:
+            StorageOperationError: If the connection to the database fails.
+        """
+        try:
+            self._connection = sqlite3.connect(db_path, check_same_thread=False)
+            self._cursor = self._connection.cursor()
+            self._lock = Lock()
+            self._initialize_db()
+        except Exception as e:
+            raise exceptions.StorageOperationError("Failed to connect to SQLite database: {exception}.", exception=e)
+
+    def _initialize_db(self) -> None:
+        """
+        Initialize the database table for storing key-value pairs.
+        """
+        with self._lock:
+            self._cursor.execute("""
+                CREATE TABLE IF NOT EXISTS storage (
+                    key TEXT PRIMARY KEY,
+                    value BLOB
+                )
+            """)
+            self._connection.commit()
+
+    def _get(self, key: str) -> Optional[bytes]:
+        """
+        Actually get the value from the SQLite database.
+
+        Args:
+            key (str): The key to retrieve the value for.
+
+        Returns:
+            Optional[bytes]: The value associated with the key, or None if the key does not exist.
+        """
+        with self._lock:
+            self._cursor.execute("SELECT value FROM storage WHERE key = ?", (key,))
+            row = self._cursor.fetchone()
+            return row[0] if row else None
+
+    def _put(self, key: str, value: bytes) -> None:
+        """
+        Actually store the value in the SQLite database.
+
+        Args:
+            key (str): The key to associate the value with.
+            value (bytes): The value to store.
+        """
+        with self._lock:
+            self._cursor.execute("REPLACE INTO storage (key, value) VALUES (?, ?)", (key, value))
+            self._connection.commit()
+
+    def _delete(self, key: str) -> None:
+        """
+        Actually delete the key from the SQLite database.
+
+        Args:
+            key (str): The key to delete.
+        """
+        with self._lock:
+            self._cursor.execute("DELETE FROM storage WHERE key = ?", (key,))
+            self._connection.commit()
+
+    def prepare_key(self, key: str) -> str:
+        """
+        Prepare and convert the key to a consistent format (string).
+
+        Args:
+            key (str): The key to convert.
+
+        Returns:
+            str: The converted key.
+        """
+        return str(key)
+
+    def close(self) -> None:
+        """
+        Close the connection to the database.
+        """
+        with self._lock:
+            self._connection.close()
+    
+    @property
+    def closed(self) -> bool:
+        """
+        Check if the connection to the database is closed.
+
+        Returns:
+            bool: True if the connection is closed, False otherwise.
+        """
+        try:
+            self._connection.execute("SELECT 1")
+            return False
+        except sqlite3.ProgrammingError:
+            return True
+    
+    def vacuum(self) -> None:
+        """
+        Perform a VACUUM operation to optimize the database by reclaiming unused space.
+
+        Raises:
+            StorageOperationError: If the VACUUM operation fails.
+        """
+        try:
+            with self._lock:
+                self._cursor.execute("VACUUM")
+                self._connection.commit()
+        except Exception as e:
+            raise exceptions.StorageOperationError("Failed to vacuum the SQLite database: {exception}.", exception=e)
