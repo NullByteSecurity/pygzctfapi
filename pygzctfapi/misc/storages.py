@@ -15,7 +15,34 @@ try:
 except ImportError:
     plyvel = None
 
-class ByteStorageBase(ABC):
+
+class StorageBaseClass(ABC):
+    @abstractmethod
+    def get(self, key: str) -> Union[Dict, List, str, int, bytes, float]:
+        pass
+
+    @abstractmethod
+    def set(self, key: str, value: Union[Dict, List, str, int, bytes, float]) -> None:
+        pass
+
+    @abstractmethod
+    def unset(self, key: str) -> None:
+        pass
+
+    @abstractmethod
+    def exists(self, key: str) -> bool:
+        pass
+    
+    @abstractmethod
+    def close(self) -> None:
+        pass
+
+    @property
+    @abstractmethod
+    def closed(self) -> bool:
+        pass
+
+class ByteStorage(StorageBaseClass, ABC):
 
     def get(self, key: str) -> Union[Dict, List, str, int, bytes, float]:
         """
@@ -52,7 +79,7 @@ class ByteStorageBase(ABC):
         """
         pass
 
-    def put(self, key: str, value: Union[Dict, List, str, int, bytes, float]) -> None:
+    def set(self, key: str, value: Union[Dict, List, str, int, bytes, float]) -> None:
         """
         Store a value based on the key in the storage.
         
@@ -66,12 +93,12 @@ class ByteStorageBase(ABC):
         key = self.prepare_key(key)
         value = self.prepare_data(value)
         try:
-            self._put(key, value)
+            self._set(key, value)
         except Exception as e:
             raise exceptions.StorageOperationError(exception=e)
     
     @abstractmethod
-    def _put(self, key: Union[str, bytes], value: bytes) -> None:
+    def _set(self, key: Union[str, bytes], value: bytes) -> None:
         """
         Actually store the value in the storage.
         
@@ -81,29 +108,29 @@ class ByteStorageBase(ABC):
         """
         pass
 
-    def delete(self, key: str) -> None:
+    def unset(self, key: str) -> None:
         """
-        Delete a key from the storage.
+        Removes an item from the storage based on the provided key.
         
         Args:
-            key (str): The key to delete.
+            key (str): The key to remove associated value for.
 
         Raises:
             StorageOperationError: If any error occurs while deleting the key.
         """
         key = self.prepare_key(key)
         try:
-            self._delete(key)
+            self._unset(key)
         except Exception as e:
             raise exceptions.StorageOperationError(exception=e)
     
     @abstractmethod
-    def _delete(self, key: Union[str, bytes]) -> None:
+    def _unset(self, key: Union[str, bytes]) -> None:
         """
-        Actually delete the key from the storage.
+        Actually removes an item from the storage based on the provided key.
 
         Args:
-            key (Union[str, bytes]): The key to delete.
+            key (Union[str, bytes]): The key to remove associated value for.
         """
         pass
 
@@ -176,8 +203,8 @@ class ByteStorageBase(ABC):
         """
         pass
 
-#TODO: Use Redis native datatypes instead of msgpack (should more efficient)
-class RedisStorage(ByteStorageBase):
+#TODO: Use Redis native datatypes instead of msgpack (should be more efficient)
+class RedisStorage(ByteStorage):
 
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 0, password: Optional[str] = None):
         """
@@ -213,7 +240,7 @@ class RedisStorage(ByteStorageBase):
         value = self._client.get(key)
         return value
 
-    def _put(self, key: str, value: bytes) -> None:
+    def _set(self, key: str, value: bytes) -> None:
         """
         Actually store the value in Redis.
         
@@ -223,12 +250,12 @@ class RedisStorage(ByteStorageBase):
         """
         self._client.set(key, value)
 
-    def _delete(self, key: str) -> None:
+    def _unset(self, key: str) -> None:
         """
-        Actually delete the key from Redis.
-        
+        Actually removes an item from the Redis storage based on the provided key.
+
         Args:
-            key (str): The key to delete.
+            key (str): The key to remove associated value for.
         """
         self._client.delete(key)
 
@@ -264,11 +291,11 @@ class RedisStorage(ByteStorageBase):
         except (redis.ConnectionError, redis.TimeoutError):
             return False
 
-class PlyvelStorage(ByteStorageBase):
+class PlyvelStorage(ByteStorage):
 
     def __init__(self, db_path: str, create_if_missing: bool = True):
         """
-        Initialize a PlyvelStorage object with the given database path.
+        Initialize a PlyvelStorage (LevelDB) object with the given database path.
         Hint: If you want to store DB in memory, use 'db_path' = '/dev/shm/...' (Linux)
 
         Args:
@@ -299,7 +326,7 @@ class PlyvelStorage(ByteStorageBase):
         """
         return self._db.get(key)
 
-    def _put(self, key: bytes, value: bytes) -> None:
+    def _set(self, key: bytes, value: bytes) -> None:
         """
         Actually store the value in Plyvel (LevelDB).
 
@@ -310,12 +337,12 @@ class PlyvelStorage(ByteStorageBase):
         with self._lock:
             self._db.put(key, value)
 
-    def _delete(self, key: bytes) -> None:
+    def _unset(self, key: bytes) -> None:
         """
-        Actually delete the key from Plyvel (LevelDB).
+        Actually removes an item from the Plyvel (LevelDB) storage based on the provided key.
 
         Args:
-            key (bytes): The key to delete.
+            key (bytes): The key to remove associated value for.
         """
         with self._lock:
             self._db.delete(key)
@@ -348,7 +375,7 @@ class PlyvelStorage(ByteStorageBase):
         """
         return self._db.closed
 
-class InMemoryStorage:
+class InMemoryStorage(StorageBaseClass):
     
     def __init__(self):
         """
@@ -356,24 +383,7 @@ class InMemoryStorage:
         """
         self._store = {}
         self._lock = Lock()
-    
-    def _get(self, key: Any) -> Optional[Any]:
-        """
-        Get the value from the in-memory storage. Left for backward compatibility.
-        """
-        return self.get(key)
-    
-    def _put(self, key: Any, value: Any) -> None:
-        """
-        Store the value in the in-memory storage. Left for backward compatibility.
-        """
-        self.put(key, value)
-    
-    def _delete(self, key: Any) -> None:
-        """
-        Delete the key from the in-memory storage. Left for backward compatibility.
-        """
-        self.delete(key)
+        self._is_closed = False
 
     def get(self, key: Any) -> Optional[Any]:
         """
@@ -385,10 +395,13 @@ class InMemoryStorage:
         Returns:
             Optional[Any]: The value associated with the key, or None if the key does not exist.
         """
-        with self._lock:
-            return self._store.get(key, None)
+        if not self._is_closed:
+            with self._lock:
+                return self._store.get(key, None)
+        else:
+            raise exceptions.StorageOperationError("Storage is closed.")
 
-    def put(self, key: Any, value: Any) -> None:
+    def set(self, key: Any, value: Any) -> None:
         """
         Store the value in the in-memory storage.
 
@@ -396,19 +409,25 @@ class InMemoryStorage:
             key (Any): The key to associate the value with.
             value (Any): The value to store.
         """
-        with self._lock:
-            self._store[key] = deepcopy(value)
+        if not self._is_closed:
+            with self._lock:
+                self._store[key] = deepcopy(value)
+        else:
+            raise exceptions.StorageOperationError("Storage is closed.")
 
-    def delete(self, key: Any) -> None:
+    def unset(self, key: Any) -> None:
         """
-        Delete the key from the in-memory storage.
+        Removes an item from the in-memory storage based on the provided key.
 
         Args:
-            key (Any): The key to delete.
+            key (Any): The key to remove associated value for.
         """
-        with self._lock:
-            if key in self._store:
-                del self._store[key]
+        if not self._is_closed:
+            with self._lock:
+                if key in self._store:
+                    del self._store[key]
+        else:
+            raise exceptions.StorageOperationError("Storage is closed.")
     
     def exists(self, key: Any) -> bool:
         """
@@ -420,8 +439,11 @@ class InMemoryStorage:
         Returns:
             bool: True if the key exists, False otherwise.
         """
-        with self._lock:
-            return key in self._store
+        if not self._is_closed:
+            with self._lock:
+                return key in self._store
+        else:
+            raise exceptions.StorageOperationError("Storage is closed.")
 
     def prepare_key(self, key: Any) -> Any:
         """
@@ -439,8 +461,14 @@ class InMemoryStorage:
         """
         Close the in-memory storage. Simply clears the store.
         """
-        with self._lock:
-            self._store.clear()
+        if not self._is_closed:
+            with self._lock:
+                self._store.clear()
+                self._is_closed = True
+                del self._lock
+                del self._store
+        else:
+            raise exceptions.StorageOperationError("Storage is already closed.")
     
     @property
     def closed(self) -> bool:
@@ -450,10 +478,9 @@ class InMemoryStorage:
         Returns:
             bool: True if the storage is closed, False otherwise.
         """
-        with self._lock:
-            return not bool(self._store)
+        return self._is_closed
 
-class SQLiteStorage(ByteStorageBase):
+class SQLiteStorage(ByteStorage):
     
     def __init__(self, db_path: str):
         """
@@ -502,7 +529,7 @@ class SQLiteStorage(ByteStorageBase):
             row = self._cursor.fetchone()
             return row[0] if row else None
 
-    def _put(self, key: str, value: bytes) -> None:
+    def _set(self, key: str, value: bytes) -> None:
         """
         Actually store the value in the SQLite database.
 
@@ -514,12 +541,12 @@ class SQLiteStorage(ByteStorageBase):
             self._cursor.execute("REPLACE INTO storage (key, value) VALUES (?, ?)", (key, value))
             self._connection.commit()
 
-    def _delete(self, key: str) -> None:
+    def _unset(self, key: str) -> None:
         """
-        Actually delete the key from the SQLite database.
+        Actually removes an item from the SQLite storage based on the provided key.
 
         Args:
-            key (str): The key to delete.
+            key (str): The key to remove associated value for.
         """
         with self._lock:
             self._cursor.execute("DELETE FROM storage WHERE key = ?", (key,))

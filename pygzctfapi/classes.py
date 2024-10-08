@@ -1,0 +1,2 @@
+class GZAPIBaseClass:
+    pass

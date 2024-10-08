@@ -1,11 +1,12 @@
 import httpx
 from pygzctfapi import constants, utils, controllers, exceptions
+from pygzctfapi.classes import GZAPIBaseClass
 from urllib.parse import urljoin
 from collections import namedtuple
 
 CREDSTUPLE = namedtuple("Credentials", "login password")
 
-class GZAPI():
+class GZAPI(GZAPIBaseClass):
 
     def __init__(self, url: str, login: str = None, password: str = None):
         """

@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 from typing import List
 from pygzctfapi import variables
+from pygzctfapi.classes import GZAPIBaseClass
 
 
 @dataclass
@@ -19,9 +20,9 @@ class BaseModel:
 
 @dataclass
 class FunctionalModel(BaseModel):
-    _gzapi: 'GZAPI' = field(default=None, repr=False, init=False)
+    _gzapi: 'GZAPIBaseClass' = field(default=None, repr=False, init=False)
     
-    def set_gzapi(self, gzapi: 'GZAPI'):
+    def set_gzapi(self, gzapi: 'GZAPIBaseClass'):
         """Helper method to set the GZAPI object reference."""
         self._gzapi = gzapi
 

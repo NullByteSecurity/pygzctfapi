@@ -101,7 +101,7 @@ storage_test_data = {
     """
 }
 
-def storage_tst(storage):
+def storage_tst(storage: storages.StorageBaseClass):
     #If storage is not empty due to previous tests, delete all keys:
     #for key in storage_test_data:
     #    storage.delete(key)
@@ -110,18 +110,18 @@ def storage_tst(storage):
         assert storage.get(key) is None
     
     for key in storage_test_data:
-        storage.put(key, storage_test_data[key])
+        storage.set(key, storage_test_data[key])
     
     for key in storage_test_data:
         assert storage.get(key) == storage_test_data[key]
     
     for key in storage_test_data:
-        storage.delete(key)
+        storage.unset(key)
     
     for key in storage_test_data:
         assert storage.get(key) is None
 
-def storage_close(storage):
+def storage_close(storage: storages.StorageBaseClass):
     storage.close()
     assert storage.closed
 
