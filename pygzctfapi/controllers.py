@@ -3,8 +3,12 @@ from urllib.parse import urljoin
 from pygzctfapi import exceptions
 from pygzctfapi import models
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from pygzctfapi import GZAPI
+
 class BaseController():
-    def __init__(self, gzapi, endpoint, endpoint_name):
+    def __init__(self, gzapi: 'GZAPI', endpoint: str, endpoint_name: str):
         """
         Initialize the controller with the given GZAPI instance, endpoint, and endpoint name.
 
@@ -18,11 +22,11 @@ class BaseController():
         self._endpoint_name = endpoint_name
         self._endpoint_url = urljoin(self._gzapi.platform_url, self._endpoint)
     
-    def _build_url(self, *paths) -> str:
+    def _build_url(self, *paths: str) -> str:
         """
         Build a URL by joining self._endpoint_url with the given arguments.
         Args:
-            *paths: URL path segments to join
+            *paths (str): URL path segments to join
         Returns:
             str: The joined URL
         """
@@ -33,7 +37,7 @@ class BaseController():
         return result.rstrip('/')
 
 class GameController(BaseController):
-    def __init__(self, gzapi):
+    def __init__(self, gzapi: 'GZAPI'):
         """
         Initialize the GameController with the given GZAPI instance.
 
@@ -51,34 +55,28 @@ class GameController(BaseController):
         """
         response = self._gzapi._client.get(self._endpoint_url, headers=self._gzapi._get_referer('games'))
         exceptions.Raiser.raise_for_status(response)
-        games = [models.GameSummary.from_dict(game) for game in response.json()]
+        games = sorted([models.GameSummary.from_dict(game) for game in response.json()], key=lambda game: game.id)
         for game in games:
             game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
             game.set_gzapi(self._gzapi)
         return games
 
-    def get(self, gameId: int = None, title: str = None) -> models.Game:
+    def get(self, game_id: int = None, title: str = None) -> models.Game:
         """
         Get a game by its ID or title.
 
         Args:
-            gameId (int, optional): The ID of the game. Defaults to None.
+            game_id (int, optional): The ID of the game. Defaults to None.
             title (str, optional): The title of the game. Defaults to None.
 
         Returns:
             models.Game: The game
         """
-        if gameId is None and title is None:
-            raise ValueError("Either id or title must be provided.")
-        if gameId is not None:
-            return self._get_by_id(gameId)
+        if game_id is None and title is None:
+            raise ValueError("Either game_id or title must be provided.")
+        if game_id is not None:
+            return self._get_by_id(game_id)
         return self._get_by_title(title)
-    
-    def notices(self, gameId: int) -> List[models.Notice]:
-        response = self._gzapi._client.get(self._build_url(str(gameId), '/notices'), headers=self._gzapi._get_referer(f'games/{gameId}/challenges'))
-        exceptions.Raiser.raise_for_status(response)
-        notices = [models.Notice.from_dict(notice) for notice in response.json()]
-        return notices
     
     def _get_by_title(self, title: str) -> models.Game:
         """
@@ -96,15 +94,15 @@ class GameController(BaseController):
         games = self.list()
         for game in games:
             if game.title == title:
-                return self.get(game.id)
+                return self._get_by_id(game.id)
         raise exceptions.GameNotFoundError(f"Game with title \"{title}\" not found.")
     
-    def _get_by_id(self, gameId: int) -> models.Game:
+    def _get_by_id(self, game_id: int) -> models.Game:
         """
         Get a game by its ID.
 
         Args:
-            gameId (int): The ID of the game
+            game_id (int): The ID of the game
 
         Returns:
             models.Game: The game
@@ -112,16 +110,32 @@ class GameController(BaseController):
         Raises:
             exceptions.GameNotFoundError: If the game is not found
         """
-        response = self._gzapi._client.get(self._build_url(str(gameId)), headers=self._gzapi._get_referer('games'))
+        response = self._gzapi._client.get(self._build_url(str(game_id)), headers=self._gzapi._get_referer('games'))
         exceptions.Raiser.raise_for_status(response)
         if response.status_code == 404:
-            raise exceptions.GameNotFoundError(f"Game with id {gameId} not found.")
+            raise exceptions.GameNotFoundError(f"Game with id {game_id} not found.")
         game = models.Game.from_dict(response.json())
+        game.set_gzapi(self._gzapi)
         game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
         return game
+    
+    def notices(self, game_id: int) -> List[models.Notice]:
+        """
+        Get a list of notices for a game.
+
+        Args:
+            game_id (int): The ID of the game
+
+        Returns:
+            List[models.Notice]: A list of Notice objects
+        """
+        response = self._gzapi._client.get(self._build_url(str(game_id), '/notices'), headers=self._gzapi._get_referer(f'games/{game_id}/challenges'))
+        exceptions.Raiser.raise_for_status(response)
+        notices = sorted([models.Notice.from_dict(notice) for notice in response.json()], key=lambda notice: notice.id)
+        return notices
         
 class AccountController(BaseController):
-    def __init__(self, gzapi):
+    def __init__(self, gzapi: 'GZAPI'):
         """
         Initialize the AccountController with the given GZAPI instance.
 

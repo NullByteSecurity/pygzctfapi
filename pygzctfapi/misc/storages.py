@@ -291,7 +291,7 @@ class RedisStorage(ByteStorage):
         except (redis.ConnectionError, redis.TimeoutError):
             return False
 
-class PlyvelStorage(ByteStorage):
+class LevelDBStorage(ByteStorage):
 
     def __init__(self, db_path: str, create_if_missing: bool = True):
         """

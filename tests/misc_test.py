@@ -1,5 +1,11 @@
-from pygzctfapi.misc import storages
+import time
+from pygzctfapi.misc import storages, trackers
+from pygzctfapi import GZAPI
 from icecream import ic
+
+url = "https://games.nullbyte.pro/"
+login = 'TEST'
+password = 'T3STacc0UNT_j0Kkw3U!'
 
 storage_test_data = {
     #Previous test data
@@ -129,7 +135,7 @@ def storage_close(storage: storages.StorageBaseClass):
 def test_storages():
     print()
     RedisStorage = storages.RedisStorage()
-    PlyvelStorage = storages.PlyvelStorage("/dev/shm/pygzctfapi_test.plyvel")
+    PlyvelStorage = storages.LevelDBStorage("/dev/shm/pygzctfapi_test.plyvel")
     InMemoryStorage = storages.InMemoryStorage()
     SQLiteStorage = storages.SQLiteStorage("/dev/shm/pygzctfapi_test.sqlite")
     
@@ -149,4 +155,13 @@ def test_storages():
     SQLiteStorage.vacuum()
     storage_close(SQLiteStorage)
     ic("SQLiteStorage: OK")
-    
+
+def test_notices_tracker():
+    print()
+    gzapi = GZAPI(url)
+    game = gzapi.game.get(1)
+    storage = storages.InMemoryStorage()
+    tracker = trackers.NoticesTracker(game=game, storage=storage, ignore_old_notices=True)
+    while True:
+        ic(tracker.get_updates())
+        time.sleep(1)

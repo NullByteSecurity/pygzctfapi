@@ -3,8 +3,11 @@ from datetime import datetime
 import json
 from typing import List
 from pygzctfapi import variables
-from pygzctfapi.classes import GZAPIBaseClass
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pygzctfapi import GZAPI
 
 @dataclass
 class BaseModel:
@@ -20,9 +23,9 @@ class BaseModel:
 
 @dataclass
 class FunctionalModel(BaseModel):
-    _gzapi: 'GZAPIBaseClass' = field(default=None, repr=False, init=False)
+    _gzapi: 'GZAPI' = field(default=None, repr=False, init=False)
     
-    def set_gzapi(self, gzapi: 'GZAPIBaseClass'):
+    def set_gzapi(self, gzapi: 'GZAPI'):
         """Helper method to set the GZAPI object reference."""
         self._gzapi = gzapi
 
@@ -34,7 +37,7 @@ class UpgradeableModel(FunctionalModel):
 
 
 @dataclass
-class Game(BaseModel):
+class Game(FunctionalModel):
     id: int
     title: str
     content: str
@@ -82,6 +85,15 @@ class Game(BaseModel):
             return False
 
         return self.id == other.id
+    
+    def notices(self) -> List['Notice']:
+        """
+        Get a list of notices for the game.
+
+        Returns:
+            List[Notice]: A list of Notice objects
+        """
+        return self._gzapi.game.notices(game_id=self.id)
 
 
 @dataclass
