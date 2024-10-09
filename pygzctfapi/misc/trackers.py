@@ -1,5 +1,6 @@
 from typing import List, Union
 from pygzctfapi.misc.storages import InMemoryStorage
+from pygzctfapi.models import Notice
 from threading import Lock
 
 from typing import TYPE_CHECKING
@@ -10,18 +11,19 @@ if TYPE_CHECKING:
     from pygzctfapi.models import Game
 
 
+#TODO: add support for callbacks, get_updates() should return NoticeUpdate objects (update_type, new_notice, old_notice), track all changes (including edits and deletions), add argument to disable tracking all changes except new notices
 class NoticesTracker:
     def __init__(self, game: 'Game', storage: 'StorageBaseClass'=None, ignore_old_notices: bool=True, tracker_id: Union[str, int]=1, gzapi: 'GZAPI'=None, game_id: int=None):
         """
         Initialize the NoticesTracker.
         
-        NoticesTracker tracks new notices in a game. It supports polling [and callbacks based on polling (not yet)].
-        To keep tracking new notices after restarts, use Redis, LevelDB, or SQLite storages.
+        NoticesTracker tracks notices changes in a game. It supports polling [and callbacks based on polling (not yet)].
+        To keep tracking changes after restarts, use Redis, LevelDB, or SQLite storages.
 
         Args:
             game (Game): The game to track. Mutually exclusive with (gzapi, game_id).
             storage (StorageBaseClass, optional): The storage to use. New InMemoryStorage will be created if not provided.
-            ignore_old_notices (bool, optional): Whether to ignore old notices. Defaults to True.
+            ignore_old_notices (bool, optional): Whether to ignore old notices on first initialization. Defaults to True.
             tracker_id (Union[str, int], optional): The tracker ID used to distinguish multiple trackers by the same game. Defaults to 1.
             gzapi (GZAPI, optional): The GZAPI instance to use. Mutually exclusive with game.
             game_id (int, optional): The ID of the game to track. Mutually exclusive with game.
@@ -63,7 +65,7 @@ class NoticesTracker:
     def last_nid(self, notice_id: int):
         self._storage.set(self._store_key, notice_id)
     
-    def get_updates(self, limit=None) -> List:
+    def get_updates(self, limit=None) -> List[Notice]:
         """
         Get a list of new notices since the last call of this method (or start of the program).
 

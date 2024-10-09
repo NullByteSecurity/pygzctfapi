@@ -162,6 +162,10 @@ def test_notices_tracker():
     game = gzapi.game.get(1)
     storage = storages.InMemoryStorage()
     tracker = trackers.NoticesTracker(game=game, storage=storage, ignore_old_notices=True)
-    while True:
-        ic(tracker.get_updates())
+    for i in range(30):
+        updates = tracker.get_updates()
+        if updates:
+            ic(f"\n{i}: {updates}")
+        else:
+            print(f"\rNo updates at {i}", end="", flush=True)
         time.sleep(1)
