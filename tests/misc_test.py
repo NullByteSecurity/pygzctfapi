@@ -165,7 +165,10 @@ def test_notices_tracker():
     for i in range(30):
         updates = tracker.get_updates()
         if updates:
-            ic(f"\n{i}: {updates}")
+            print()
+            #ic(f"{i}: {updates}")
+            for update in updates:
+                ic(update.summary)
         else:
             print(f"\rNo updates at {i}", end="", flush=True)
         time.sleep(1)

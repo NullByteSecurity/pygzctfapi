@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import json
 from typing import List
-from pygzctfapi import variables
+from pygzctfapi import utils, variables
 
 from typing import TYPE_CHECKING
 
@@ -15,10 +15,13 @@ class BaseModel:
         """Converts the object to a JSON string."""
         return json.dumps(self, default=self._json_default, indent=indent)
     
-    def _json_default(self, obj):
+    @staticmethod
+    def _json_default(obj):
         """Helper method to convert non-serializable objects."""
         if isinstance(obj, datetime):
             return obj.isoformat()
+        if isinstance(obj, BaseModel):
+            return asdict(obj)
         return str(obj)
 
 @dataclass
@@ -181,7 +184,7 @@ class Notice(BaseModel):
         """Creates a Notice object from a dictionary."""
         return Notice(
             id=data['id'],
-            time=datetime.fromisoformat(data['time'].rstrip('Z')),
+            time=utils.to_datetime(data['time']),
             type=data['type'],
             values=data['values']
         )
