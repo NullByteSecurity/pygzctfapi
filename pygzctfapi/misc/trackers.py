@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 #TODO: add support for callbacks, get_updates() should be reviewed and tested
 class NoticesTracker:
-    def __init__(self, game: 'Game', storage: 'StorageBaseClass'=None, ignore_old_notices: bool=True, tracker_id: Union[str, int]=1, gzapi: 'GZAPI'=None, game_id: int=None):
+    def __init__(self, game: 'Game', storage: 'StorageBaseClass'=None, ignore_old_notices: bool=True, tracker_id: Union[str, int]=1):
         """
         Initialize the NoticesTracker.
         
@@ -24,24 +24,15 @@ class NoticesTracker:
         To keep tracking changes after restarts, use Redis, LevelDB, or SQLite storages.
 
         Args:
-            game (Game): The game to track. Mutually exclusive with (gzapi, game_id).
+            game (Game): The game to track.
             storage (StorageBaseClass, optional): The storage to use. New InMemoryStorage will be created if not provided.
             ignore_old_notices (bool, optional): Whether to ignore old notices on first initialization. Defaults to True.
             tracker_id (Union[str, int], optional): The tracker ID used to distinguish multiple trackers by the same game. Defaults to 1.
-            gzapi (GZAPI, optional): The GZAPI instance to use. Mutually exclusive with game.
-            game_id (int, optional): The ID of the game to track. Mutually exclusive with game.
-
-        Raises:
-            RuntimeError: If either game or (gzapi, game_id) is not provided.
         """
-        if game is not None:
-            self._game = game
-            self._gzapi = game._gzapi
-        elif gzapi is not None and game_id is not None:
-            self._gzapi = gzapi
-            self._game = gzapi.game.get(game_id)
-        else:
-            raise RuntimeError("Either game or (gzapi, game_id) must be provided.")
+        
+        self._game : Game = game
+        self._gzapi : GZAPI = game._gzapi
+        self._storage : StorageBaseClass = None
         
         if storage is None:
             self._storage = InMemoryStorage()
