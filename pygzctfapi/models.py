@@ -59,10 +59,10 @@ class Game(FunctionalModel):
     poster: str
     teamName: str
 
-    @staticmethod
-    def from_dict(data: dict) -> 'Game':
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Game':
         """Helper method to create Game object from a dictionary."""
-        return Game(
+        return cls(
             id=data['id'],
             title=data['title'],
             content=data['content'],
@@ -109,10 +109,10 @@ class GameSummary(UpgradeableModel):
     limit: int
     poster: str
 
-    @staticmethod
-    def from_dict(data: dict) -> 'GameSummary':
+    @classmethod
+    def from_dict(cls, data: dict) -> 'GameSummary':
         """Helper method to create GameSummary object from a dictionary."""
-        return GameSummary(
+        return cls(
             id=data['id'],
             title=data['title'],
             summary=data['summary'],
@@ -150,10 +150,10 @@ class Profile(BaseModel):
     role: str
     stdNumber: str
 
-    @staticmethod
-    def from_dict(data: dict) -> 'Profile':
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Profile':
         """Helper method to create a Profile object from a dictionary."""
-        return Profile(
+        return cls(
             userId=data['userId'],
             userName=data['userName'],
             email=data['email'],
@@ -179,10 +179,10 @@ class Notice(BaseModel):
     type: str
     values: List[str]
 
-    @staticmethod
-    def from_dict(data: dict) -> 'Notice':
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Notice':
         """Creates a Notice object from a dictionary."""
-        return Notice(
+        return cls(
             id=data['id'],
             time=utils.to_datetime(data['time']),
             type=data['type'],
