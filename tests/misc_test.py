@@ -1,7 +1,11 @@
 import time
-from pygzctfapi.misc import storages, trackers
+from pygzctfapi.misc import dispatchers, storages, trackers
 from pygzctfapi import GZAPI
+from pygzctfapi.misc import routers
 from icecream import ic
+
+from pygzctfapi.misc.events import NoticeTrackerEvents
+from pygzctfapi.misc.updates import NoticeUpdate
 
 url = "https://games.nullbyte.pro/"
 login = 'TEST'
@@ -161,14 +165,35 @@ def test_notices_tracker():
     gzapi = GZAPI(url)
     game = gzapi.game.get(1)
     storage = storages.InMemoryStorage()
-    tracker = trackers.NoticesTracker(game=game, storage=storage, ignore_old_notices=True)
-    for i in range(30):
-        updates = tracker.get_updates()
-        if updates:
-            print()
-            #ic(f"{i}: {updates}")
-            for update in updates:
-                ic(update.summary)
-        else:
-            print(f"\rNo updates at {i}", end="", flush=True)
-        time.sleep(1)
+    
+    tracker = trackers.NoticeTracker(game=game, storage=storage, ignore_old_notices=True)
+    router = routers.NoticeTrackerRouter()
+    
+    @router.registrator.any
+    def any_handler(event: NoticeUpdate):
+        ic(f"Any handler: {event.summary}")
+        
+    def new_handler(event: NoticeUpdate):
+        ic(f"New handler: {event.summary}")
+    
+    router.add_handler(router.events.new, new_handler)
+    
+    dispatcher = dispatchers.TrackerDispatcher(routers=router, trackers=tracker, polling_interval=1)
+    dispatcher.start()
+    
+    time.sleep(90)
+    
+    dispatcher.stop()
+
+    # for i in range(30):
+    #     updates = tracker.get_updates()
+    #     if updates:
+    #         print()
+    #         #ic(f"{i}: {updates}")
+    #         for update in updates:
+    #             ic(update.summary)
+    #     else:
+    #         print(f"\rNo updates at {i}", end="", flush=True)
+    #     time.sleep(1)
+    
+    

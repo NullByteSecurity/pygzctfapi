@@ -1,3 +1,10 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pygzctfapi.misc.trackers import DispatchableTracker
+    from pygzctfapi.misc.routers import BaseRouter
+
+
 class Raiser:
     @staticmethod
     def raise_for_status(response):
@@ -50,3 +57,72 @@ class StorageOperationError(GZException):
         self.message = message
         self.exception = exception
         super().__init__(self.message.format(exception=exception))
+
+
+class RouterError(GZException):
+    """Base class for router exceptions."""
+    def __init__(self, message="Router error: {exception}.", exception=None):
+        self.message = message
+        self.exception = exception
+        super().__init__(self.message.format(exception=exception))
+
+class HandlerAlreadyRegisteredError(RouterError):
+    """Raised when a handler is already registered."""
+    def __init__(self, message="Handler [{handler}] already registered.", handler: callable = None):
+        self.handler = handler
+        super().__init__(message.format(handler=handler.__name__ if isinstance(handler, callable) else handler))
+
+class HandlerNotRegisteredError(RouterError):
+    """Raised when a handler is not registered."""
+    def __init__(self, message="Handler [{handler}] not registered.", handler: callable = None):
+        self.handler = handler
+        super().__init__(message.format(handler=handler.__name__ if isinstance(handler, callable) else handler))
+
+class EventTypeError(RouterError):
+    """Raised when a event type is not valid."""
+    def __init__(self, message="Event type [{event_type}] is not valid for the router {router}.", event_type: str = None, router: 'BaseRouter' = None):
+        self.event_type = event_type
+        super().__init__(message.format(event_type=event_type, router=router.__class__.__name__))
+
+
+class DispatcherError(GZException):
+    """Base class for dispatcher exceptions."""
+    def __init__(self, message="Dispatcher error: {exception}.", exception=None):
+        self.message = message
+        self.exception = exception
+        super().__init__(self.message.format(exception=exception))
+
+class NoRoutersError(DispatcherError):
+    """Raised when no routers are registered."""
+    def __init__(self, message="No routers registered. You must register routers before performing this operation."):
+        super().__init__(message)
+
+class NoTrackersError(DispatcherError):
+    """Raised when no trackers are registered."""
+    def __init__(self, message="No trackers registered. You must register trackers before performing this operation."):
+        super().__init__(message)
+
+class DispatcherIsRunningError(DispatcherError):
+    """Raised when a dispatcher is running (i.e. an operation is not supposed to be performed while the dispatcher is running or trying to start already running dispatcher)."""
+    def __init__(self, message="Dispatcher is running. You must perform this operation while the dispatcher is not running."):
+        super().__init__(message)
+
+class RouterAlreadyRegisteredError(DispatcherError):
+    """Raised when a router is already registered."""
+    def __init__(self, message="Router [{router}] already registered.", router: 'BaseRouter' = None):
+        super().__init__(message.format(handler=router.__class__.__name__ if isinstance(router, object) else router))
+
+class RouterNotRegisteredError(DispatcherError):
+    """Raised when a router is not registered."""
+    def __init__(self, message="Router [{router}] not registered.", router: 'BaseRouter' = None):
+        super().__init__(message.format(router=router.__class__.__name__ if isinstance(router, object) else router))
+
+class TrackerAlreadyRegisteredError(DispatcherError):
+    """Raised when a tracker is already registered."""
+    def __init__(self, message="Tracker [{tracker}] already registered.", tracker: 'DispatchableTracker' = None):
+        super().__init__(message.format(tracker=tracker.__class__.__name__ if isinstance(tracker, object) else tracker))
+
+class TrackerNotRegisteredError(DispatcherError):
+    """Raised when a tracker is not registered."""
+    def __init__(self, message="Tracker [{tracker}] not registered.", tracker: 'DispatchableTracker' = None):
+        super().__init__(message.format(tracker=tracker.__class__.__name__ if isinstance(tracker, object) else tracker))

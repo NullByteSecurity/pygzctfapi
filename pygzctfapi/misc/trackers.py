@@ -1,7 +1,9 @@
+from abc import abstractmethod, ABC
 from dataclasses import asdict
 from typing import List, Optional, Union
+from pygzctfapi.misc.events import Event, NoticeTrackerEvents
 from pygzctfapi.misc.storages import InMemoryStorage
-from pygzctfapi.misc.models import NoticeUpdate, NoticeUpdateTypes
+from pygzctfapi.misc.updates import NoticeUpdate, NoticeUpdateTypes
 from pygzctfapi.models import Notice
 from pygzctfapi import utils
 from threading import Lock
@@ -10,17 +12,34 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pygzctfapi import GZAPI
+    from pygzctfapi.misc.updates import BaseUpdate
     from pygzctfapi.misc.storages import StorageBaseClass
     from pygzctfapi.models import Game
+    from pygzctfapi.misc.dispatchers import TrackerDispatcher
 
 
-#TODO: add support for callbacks, get_updates() should be reviewed and tested
-class NoticesTracker:
+class BaseTracker(ABC):
+    _gzapi: 'GZAPI'
+    _storage: 'StorageBaseClass'
+    _tracker_id: Union[str, int]
+    
+    @abstractmethod
+    def get_updates(self) -> List['BaseUpdate']:
+        raise NotImplementedError
+
+class DispatchableTracker(BaseTracker, ABC):
+    @abstractmethod
+    def dispatch_updates(self):
+        raise NotImplementedError
+
+
+class NoticeTracker(DispatchableTracker):
+    dispatcher: Optional['TrackerDispatcher'] = None
     def __init__(self, game: 'Game', storage: 'StorageBaseClass'=None, ignore_old_notices: bool=True, tracker_id: Union[str, int]=1):
         """
-        Initialize the NoticesTracker.
+        Initialize the NoticeTracker.
         
-        NoticesTracker tracks notices changes in a game. It supports polling [and callbacks based on polling (not yet)].
+        NoticeTracker tracks notices changes in a game. It supports polling [and handlers based on polling (not yet)].
         To keep tracking changes after restarts, use Redis, LevelDB, or SQLite storages.
 
         Args:
@@ -40,10 +59,11 @@ class NoticesTracker:
             self._storage = storage
         self._lock = Lock()
         self._tracker_id = tracker_id
-        self._lnid_key = f'NoticesTracker{tracker_id}-Game{self._game.id}-LNID'
-        self._nlist_key = f'NoticesTracker{tracker_id}-Game{self._game.id}-NLIST'
+        self._lnid_key = f'NoticeTracker{tracker_id}-Game{self._game.id}-LNID'
+        self._nlist_key = f'NoticeTracker{tracker_id}-Game{self._game.id}-NLIST'
         if ignore_old_notices and self._storage.get(self._lnid_key) is None:
             self.get_updates()
+        
     
     @property
     def last_nid(self) -> int:
@@ -124,3 +144,7 @@ class NoticesTracker:
                 self.last_nid = new_notices[-1].id
             self._old_notices = new_notices
             return updates
+    
+    def dispatch_updates(self):
+        for update in self.get_updates():
+            yield Event(event=NoticeTrackerEvents.__dict__[update.update_type].fget(None), data=update)
