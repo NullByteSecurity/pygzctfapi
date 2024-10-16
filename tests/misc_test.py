@@ -169,7 +169,7 @@ def test_notices_tracker():
     tracker = trackers.NoticeTracker(game=game, storage=storage, ignore_old_notices=True)
     router = routers.NoticeTrackerRouter()
     
-    @router.registrator.any
+    @router.handle(router.events.any)
     def any_handler(event: NoticeUpdate):
         ic(f"Any handler: {event.summary}")
         
