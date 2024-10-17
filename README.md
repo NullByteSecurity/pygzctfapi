@@ -1,2 +1,2 @@
 # pygzctfapi
-Python wrapper for the GZCTF platform API.
+Python client for the GZ::CTF platform API. More information will be added soon...

@@ -171,29 +171,11 @@ def test_notices_tracker():
     
     @router.handle(router.events.any)
     def any_handler(event: NoticeUpdate):
-        ic(f"Any handler: {event.summary}")
-        
-    def new_handler(event: NoticeUpdate):
-        ic(f"New handler: {event.summary}")
-    
-    router.add_handler(router.events.new, new_handler)
+        print(f"Handled update: {event.summary}")
     
     dispatcher = dispatchers.TrackerDispatcher(routers=router, trackers=tracker, polling_interval=1)
     dispatcher.start()
-    
     time.sleep(90)
-    
     dispatcher.stop()
-
-    # for i in range(30):
-    #     updates = tracker.get_updates()
-    #     if updates:
-    #         print()
-    #         #ic(f"{i}: {updates}")
-    #         for update in updates:
-    #             ic(update.summary)
-    #     else:
-    #         print(f"\rNo updates at {i}", end="", flush=True)
-    #     time.sleep(1)
     
     
