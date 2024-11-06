@@ -123,19 +123,19 @@ class NoticeTracker(DispatchableTracker):
             for common in diff.common:
                 if new_as_dict[common] != old_as_dict[common]:
                     updates.append(NoticeUpdate(
-                        update_type=NoticeUpdateTypes.edited,
+                        update_type=NoticeUpdateTypes.EDITED,
                         new_notice=new_as_dict[common],
                         old_notice=old_as_dict[common],
                     ))
             for unique1 in diff.unique1:
                 updates.append(NoticeUpdate(
-                    update_type=NoticeUpdateTypes.new,
+                    update_type=NoticeUpdateTypes.NEW,
                     new_notice=new_as_dict[unique1],
                     old_notice=None,
                 ))
             for unique2 in diff.unique2:
                 updates.append(NoticeUpdate(
-                    update_type=NoticeUpdateTypes.deleted,
+                    update_type=NoticeUpdateTypes.DELETED,
                     new_notice=None,
                     old_notice=old_as_dict[unique2],
                 ))

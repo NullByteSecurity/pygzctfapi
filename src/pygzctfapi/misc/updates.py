@@ -1,15 +1,14 @@
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
-from types import SimpleNamespace
+from enum import StrEnum
 from typing import Optional, Union
 from pygzctfapi import models
 
 
-NoticeUpdateTypes = SimpleNamespace(
-    new='new',
-    edited='edited',
-    deleted='deleted'
-)
+class NoticeUpdateTypes(StrEnum):
+    NEW = 'new'
+    EDITED = 'edited'
+    DELETED = 'deleted'
 
 
 @dataclass
@@ -49,29 +48,29 @@ class NoticeUpdate(models.BaseModel):
     @property
     def summary(self) -> str:
         """Returns the summary of the notice update."""
-        if self.update_type == NoticeUpdateTypes.new:
+        if self.update_type == NoticeUpdateTypes.NEW:
             return f"New notice ID({self.new_notice.id}): [{self.new_notice.message}]"
-        elif self.update_type == NoticeUpdateTypes.edited:
+        elif self.update_type == NoticeUpdateTypes.EDITED:
             return f'Notice [{self.old_notice.message}] ID({self.old_notice.id}) edited: [{self.new_notice.message}]'
-        elif self.update_type == NoticeUpdateTypes.deleted:
+        elif self.update_type == NoticeUpdateTypes.DELETED:
             return f'Notice deleted ID({self.old_notice.id}): [{self.old_notice.message}]'
     
     @property
     def message(self) -> str:
         """Returns the message of the notice."""
-        if self.update_type == NoticeUpdateTypes.new:
+        if self.update_type == NoticeUpdateTypes.NEW:
             return self.new_notice.message
-        elif self.update_type == NoticeUpdateTypes.edited:
+        elif self.update_type == NoticeUpdateTypes.EDITED:
             return self.new_notice.message
-        elif self.update_type == NoticeUpdateTypes.deleted:
+        elif self.update_type == NoticeUpdateTypes.DELETED:
             return self.old_notice.message
     
     @property
     def id(self) -> int:
         """Returns the ID of the notice."""
-        if self.update_type == NoticeUpdateTypes.new:
+        if self.update_type == NoticeUpdateTypes.NEW:
             return self.new_notice.id
-        elif self.update_type == NoticeUpdateTypes.edited:
+        elif self.update_type == NoticeUpdateTypes.EDITED:
             return self.new_notice.id
-        elif self.update_type == NoticeUpdateTypes.deleted:
+        elif self.update_type == NoticeUpdateTypes.DELETED:
             return self.old_notice.id

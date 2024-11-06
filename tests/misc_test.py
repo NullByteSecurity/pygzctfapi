@@ -26,6 +26,7 @@ storage_test_data = {
     "simple_float": 2.718,
     "simple_bool_true": True,
     "simple_bool_false": False,
+    "simple_none": None,
     "simple_bytes": b"binary data",
     "empty_dict": {},
     "empty_list": [],
@@ -113,8 +114,8 @@ storage_test_data = {
 
 def storage_tst(storage: storages.StorageBaseClass):
     #If storage is not empty due to previous tests, delete all keys:
-    #for key in storage_test_data:
-    #    storage.delete(key)
+    for key in storage_test_data:
+        storage.unset(key)
     
     for key in storage_test_data:
         assert storage.get(key) is None
@@ -175,7 +176,7 @@ def test_notices_tracker():
     
     dispatcher = dispatchers.TrackerDispatcher(routers=router, trackers=tracker, polling_interval=1)
     dispatcher.start()
-    time.sleep(90)
+    #time.sleep(90)
     dispatcher.stop()
     
     

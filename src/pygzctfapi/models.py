@@ -22,7 +22,7 @@ class BaseModel:
             return obj.isoformat()
         if isinstance(obj, BaseModel):
             return asdict(obj)
-        return str(obj)
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 @dataclass
 class FunctionalModel(BaseModel):

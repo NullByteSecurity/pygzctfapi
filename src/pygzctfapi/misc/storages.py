@@ -18,11 +18,11 @@ except ImportError:
 
 class StorageBaseClass(ABC):
     @abstractmethod
-    def get(self, key: str) -> Union[Dict, List, str, int, bytes, float]:
+    def get(self, key: str) -> Union[Dict, List, str, int, bytes, float, None]:
         pass
 
     @abstractmethod
-    def set(self, key: str, value: Union[Dict, List, str, int, bytes, float]) -> None:
+    def set(self, key: str, value: Union[Dict, List, str, int, bytes, float, None]) -> None:
         pass
 
     @abstractmethod
@@ -44,7 +44,7 @@ class StorageBaseClass(ABC):
 
 class ByteStorage(StorageBaseClass, ABC):
 
-    def get(self, key: str) -> Union[Dict, List, str, int, bytes, float]:
+    def get(self, key: str) -> Union[Dict, List, str, int, bytes, float, None]:
         """
         Retrieve the value associated with the given key from the storage.
 
@@ -52,7 +52,7 @@ class ByteStorage(StorageBaseClass, ABC):
             key (str): The key to retrieve the value for.
 
         Returns:
-            Union[Dict, List, str, int, bytes, float]: The value associated with the key, or None if the key does not exist.
+            Union[Dict, List, str, int, bytes, float, None]: The value associated with the key, or None if the key does not exist.
 
         Raises:
             StorageOperationError: If any error occurs while retrieving the key.
@@ -79,13 +79,13 @@ class ByteStorage(StorageBaseClass, ABC):
         """
         pass
 
-    def set(self, key: str, value: Union[Dict, List, str, int, bytes, float]) -> None:
+    def set(self, key: str, value: Union[Dict, List, str, int, bytes, float, None]) -> None:
         """
         Store a value based on the key in the storage.
         
         Args:
             key (str): The key to associate the value with.
-            value (Union[Dict, List, str, int, bytes, float]): The value to store.
+            value (Union[Dict, List, str, int, bytes, float, None]): The value to store.
         
         Raises:
             StorageOperationError: If any error occurs while storing the value.
@@ -153,12 +153,12 @@ class ByteStorage(StorageBaseClass, ABC):
         except Exception as e:
             raise exceptions.StorageOperationError(exception=e)
     
-    def prepare_data(self, data: Union[Dict, List, str, int, bytes, float]) -> bytes:
+    def prepare_data(self, data: Union[Dict, List, str, int, bytes, float, None]) -> bytes:
         """
         Serialize the given data to bytes.
 
         Args:
-            data (Union[Dict, List, str, int, bytes, float]): The data to serialize.
+            data (Union[Dict, List, str, int, bytes, float, None]): The data to serialize.
 
         Returns:
             bytes: The serialized data.

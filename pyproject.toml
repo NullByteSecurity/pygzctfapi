@@ -1,10 +1,14 @@
 [tool.poetry]
 name = "pygzctfapi"
 version = "0.0.1"
-description = "Python wrapper for the GZCTF platform API."
-authors = ["NullByte"]
+description = "Python client for the GZCTF platform API."
+authors = ["NullByte OpenSecurity <admin@nullbyte.pro>", "FazaN <fazan@nullbyte.pro>"]
 license = "MIT License"
 readme = "README.md"
+
+packages = [
+    { include = "pygzctfapi", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
