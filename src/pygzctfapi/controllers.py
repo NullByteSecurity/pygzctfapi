@@ -55,10 +55,7 @@ class GameController(BaseController):
         """
         response = self._gzapi._client.get(self._endpoint_url, headers=self._gzapi._get_referer('games'))
         exceptions.Raiser.raise_for_status(response)
-        games = sorted([models.GameSummary.from_dict(game) for game in response.json()], key=lambda game: game.id)
-        for game in games:
-            game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
-            game.set_gzapi(self._gzapi)
+        games = sorted([models.GameSummary.from_dict(game, self._gzapi) for game in response.json()], key=lambda game: game.id)
         return games
 
     def get(self, game_id: int = None, title: str = None) -> models.Game:
@@ -114,9 +111,7 @@ class GameController(BaseController):
         exceptions.Raiser.raise_for_status(response)
         if response.status_code == 404:
             raise exceptions.GameNotFoundError(f"Game with id {game_id} not found.")
-        game = models.Game.from_dict(response.json())
-        game.set_gzapi(self._gzapi)
-        game.poster = urljoin(self._gzapi.platform_url, game.poster) if game.poster else None
+        game = models.Game.from_dict(response.json(), self._gzapi)
         return game
     
     def notices(self, game_id: int) -> List[models.Notice]:

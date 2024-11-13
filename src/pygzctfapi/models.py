@@ -1,7 +1,8 @@
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import json
-from typing import List
+from typing import List, Optional, Self
+from urllib.parse import urljoin
 from pygzctfapi import utils, variables
 
 from typing import TYPE_CHECKING
@@ -9,11 +10,23 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pygzctfapi import GZAPI
 
-@dataclass
+
 class BaseModel:
     def json(self, indent=None) -> str:
         """Converts the object to a JSON string."""
         return json.dumps(self, default=self._json_default, indent=indent)
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> Self:
+        """Helper method to create a BaseModel object from a dictionary.
+        
+        Args:
+            data (dict): The dictionary to create the object from.
+        
+        Returns:
+            Self: The created BaseModel object.
+        """
+        return cls(**{key: data[key] for key in cls.__dataclass_fields__ if key in data})
     
     @staticmethod
     def _json_default(obj):
@@ -24,23 +37,62 @@ class BaseModel:
             return asdict(obj)
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-@dataclass
 class FunctionalModel(BaseModel):
-    _gzapi: 'GZAPI' = field(default=None, repr=False, init=False)
+    _gzapi: Optional['GZAPI'] = None
     
-    def set_gzapi(self, gzapi: 'GZAPI'):
+    def _set_gzapi(self, gzapi: Optional['GZAPI']):
         """Helper method to set the GZAPI object reference."""
         self._gzapi = gzapi
+    
+    @classmethod
+    def from_dict(cls, data: dict, gzapi: Optional['GZAPI'] = None) -> Self:
+        """Helper method to create a FunctionalModel object from a dictionary.
+        
+        Args:
+            data (dict): The dictionary to create the object from.
+            gzapi (GZAPI | None): The GZAPI object reference.
+        
+        Returns:
+            Self: The created FunctionalModel object.
+        """
+        obj = cls(**{key: data[key] for key in cls.__dataclass_fields__ if key in data})
+        obj._set_gzapi(gzapi)
+        if "__post_init__" in obj.__dir__():
+            obj.__post_init__()
+        return obj
 
-@dataclass
 class UpgradeableModel(FunctionalModel):
     def upgrade(self):
-        """Helper method to upgrade the object."""
+        """Helper method to upgrade the object. Should return an upgraded object."""
         raise NotImplementedError
+
+class UpdateableModel(FunctionalModel):
+    def update(self):
+        """Helper method to update the object. Should update the object and return tuple (is_updated(bool), updated_fields(list))."""
+        raise NotImplementedError
+    
+    def _update_from(self, new: Self):
+        """Update the object from another object of the same type.
+        
+        Args:
+            new (Self): The object to update from.
+        
+        Returns:
+            tuple: A tuple containing a boolean indicating if the object was updated and a list of updated fields.
+        """
+        changed = []
+        for key, value in asdict(new).items():
+            if key in self.__dataclass_fields__:
+                if getattr(self, key) != value:
+                    setattr(self, key, value)
+                    changed.append(key)
+        if "__post_init__" in self.__dir__():
+            self.__post_init__()
+        return (len(changed) > 0, changed)
 
 
 @dataclass
-class Game(FunctionalModel):
+class Game(UpdateableModel):
     id: int
     title: str
     content: str
@@ -58,37 +110,20 @@ class Game(FunctionalModel):
     organizations: str
     poster: str
     teamName: str
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Game':
-        """Helper method to create Game object from a dictionary."""
-        return cls(
-            id=data['id'],
-            title=data['title'],
-            content=data['content'],
-            summary=data['summary'],
-            start=datetime.fromisoformat(data['start'].rstrip('Z')),
-            end=datetime.fromisoformat(data['end'].rstrip('Z')),
-            status=data['status'],
-            teamCount=data['teamCount'],
-            hidden=data['hidden'],
-            inviteCodeRequired=data['inviteCodeRequired'],
-            limit=data['limit'],
-            practiceMode=data['practiceMode'],
-            writeupRequired=data['writeupRequired'],
-            organization=data['organization'],
-            organizations=data['organizations'],
-            poster=data['poster'],
-            teamName=data['teamName']
-        )
     
-    def __eq__(self, other):
-        """Equality method to compare two Game objects. Compared only by id."""
-        if not isinstance(other, Game):
-            return False
-
-        return self.id == other.id
+    def __post_init__(self):
+        if isinstance(self.start, str):
+            self.start = datetime.fromisoformat(self.start.rstrip('Z'))
+        if isinstance(self.end, str):
+            self.end = datetime.fromisoformat(self.end.rstrip('Z'))
+        if self._gzapi is not None:
+            if isinstance(self.poster, str) and not self.poster.startswith('http'):
+                self.poster = urljoin(self._gzapi.platform_url, self.poster)
     
+    def update(self):
+        new = self._gzapi.game._get_by_id(self.id)
+        return self._update_from(new)
+        
     def notices(self) -> List['Notice']:
         """
         Get a list of notices for the game.
@@ -100,7 +135,7 @@ class Game(FunctionalModel):
 
 
 @dataclass
-class GameSummary(UpgradeableModel):
+class GameSummary(UpgradeableModel, UpdateableModel):
     id: int
     title: str
     summary: str
@@ -108,20 +143,16 @@ class GameSummary(UpgradeableModel):
     end: datetime
     limit: int
     poster: str
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'GameSummary':
-        """Helper method to create GameSummary object from a dictionary."""
-        return cls(
-            id=data['id'],
-            title=data['title'],
-            summary=data['summary'],
-            start=datetime.fromisoformat(data['start'].rstrip('Z')),
-            end=datetime.fromisoformat(data['end'].rstrip('Z')),
-            limit=data['limit'],
-            poster=data['poster']
-        )
-        
+    
+    def __post_init__(self):
+        if isinstance(self.start, str):
+            self.start = datetime.fromisoformat(self.start.rstrip('Z'))
+        if isinstance(self.end, str):
+            self.end = datetime.fromisoformat(self.end.rstrip('Z'))
+        if self._gzapi is not None:
+            if isinstance(self.poster, str) and not self.poster.startswith('http'):
+                self.poster = urljoin(self._gzapi.platform_url, self.poster)
+    
     def upgrade(self) -> 'Game':
         """Upgrade the object to a full Game object.
         
@@ -129,13 +160,15 @@ class GameSummary(UpgradeableModel):
             Game: The full Game object.
         """
         return self._gzapi.game._get_by_id(self.id)
+    
+    def update(self):
+        """Update the object.
         
-    def __eq__(self, other):
-        """Equality method to compare two GameSummary objects. Compared only by id."""
-        if not isinstance(other, GameSummary):
-            return False
-
-        return self.id == other.id
+        Returns:
+            tuple: A tuple containing a boolean indicating if the object was updated and a list of updated fields.
+        """
+        new = self._gzapi.game._get_by_id(self.id)
+        return self._update_from(new)
 
 
 @dataclass
@@ -149,28 +182,7 @@ class Profile(BaseModel):
     realName: str
     role: str
     stdNumber: str
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Profile':
-        """Helper method to create a Profile object from a dictionary."""
-        return cls(
-            userId=data['userId'],
-            userName=data['userName'],
-            email=data['email'],
-            avatar=data['avatar'],
-            bio=data['bio'],
-            phone=data['phone'],
-            realName=data['realName'],
-            role=data['role'],
-            stdNumber=data['stdNumber']
-        )
     
-    def __eq__(self, other):
-        """Equality method to compare two Profile objects. Compared only by id."""
-        if not isinstance(other, Profile):
-            return False
-
-        return self.userId == other.userId
 
 @dataclass
 class Notice(BaseModel):
@@ -178,16 +190,10 @@ class Notice(BaseModel):
     time: datetime
     type: str
     values: List[str]
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Notice':
-        """Creates a Notice object from a dictionary."""
-        return cls(
-            id=data['id'],
-            time=utils.to_datetime(data['time']),
-            type=data['type'],
-            values=data['values']
-        )
+    
+    def __post_init__(self):
+        if not isinstance(self.time, datetime):
+            self.time = utils.to_datetime(self.time)
     
     @property
     def message(self) -> str:
