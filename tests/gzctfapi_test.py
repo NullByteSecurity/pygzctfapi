@@ -14,7 +14,10 @@ def test_game():
     games = gzapi_unauth.game.list()
     ic([game.title for game in games])
     ic(games[0].upgrade().title)
+    games[0].update()
     eg = gzapi_unauth.game.get(title='Eternal Games')
+    is_updated, _ = eg.update()
+    assert is_updated == False
     gzapi_unauth.game.get(2)
     assert len(notices := eg.notices()) == len(gzapi_unauth.game.notices(eg.id))
     ic(f"Eternal Games notices: {len(notices)}")

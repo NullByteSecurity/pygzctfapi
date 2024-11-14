@@ -67,11 +67,11 @@ class UpgradeableModel(FunctionalModel):
         raise NotImplementedError
 
 class UpdateableModel(FunctionalModel):
-    def update(self):
+    def update(self) -> tuple[bool, list[str]]:
         """Helper method to update the object. Should update the object and return tuple (is_updated(bool), updated_fields(list))."""
         raise NotImplementedError
     
-    def _update_from(self, new: Self):
+    def _update_from(self, new: Self) -> tuple[bool, list[str]]:
         """Update the object from another object of the same type.
         
         Args:
@@ -120,7 +120,12 @@ class Game(UpdateableModel):
             if isinstance(self.poster, str) and not self.poster.startswith('http'):
                 self.poster = urljoin(self._gzapi.platform_url, self.poster)
     
-    def update(self):
+    def update(self) -> tuple[bool, list[str]]:
+        """Update the object.
+        
+        Returns:
+            tuple: A tuple containing a boolean indicating if the object was updated and a list of updated fields.
+        """
         new = self._gzapi.game._get_by_id(self.id)
         return self._update_from(new)
         
@@ -161,7 +166,7 @@ class GameSummary(UpgradeableModel, UpdateableModel):
         """
         return self._gzapi.game._get_by_id(self.id)
     
-    def update(self):
+    def update(self) -> tuple[bool, list[str]]:
         """Update the object.
         
         Returns:
