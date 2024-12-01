@@ -26,3 +26,6 @@ def test_account():
     print()
     #--- Test Authenticated
     ic((profile := gzapi.account.profile()).userName)
+    gzapi.authmgr.reauthenticate()
+    gzapi.authmgr.raise_on_insufficient_role()
+    ic(gzapi.authmgr.get_role())

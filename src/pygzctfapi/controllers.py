@@ -141,15 +141,15 @@ class AccountController(BaseController):
     
     def profile(self) -> models.Profile:
         """
-        Get the profile of the logged-in user.
+        Get the profile of the current user (session).
 
         Returns:
-            models.Profile: The profile of the logged-in user
+            models.Profile: The profile of the current user (session)
 
         Raises:
-            exceptions.NotAuthorizedError: If the user is not logged in
+            exceptions.NotAuthorizedError: If the current session is a guest session (not logged in)
         """
-        self._gzapi.check_auth()
+        self._gzapi.authmgr.raise_on_insufficient_role()
         response = self._gzapi._client.get(self._build_url('profile'), headers=self._gzapi._get_referer('account/profile'))
         exceptions.Raiser.raise_for_status(response)
         profile = models.Profile.from_dict(response.json())

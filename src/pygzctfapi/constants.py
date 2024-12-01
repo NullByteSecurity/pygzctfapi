@@ -1,3 +1,5 @@
+from enum import StrEnum
+
 DEFAULT_REQUEST_HEADERS = {
     'accept': 'application/json, text/plain, */*',
     'accept-language': 'en-US',
@@ -9,4 +11,12 @@ DEFAULT_REQUEST_HEADERS = {
     'sec-fetch-site': 'same-origin',
     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 }
-ROLES = ['banned', 'user', 'monitor', 'admin']
+
+class Roles(StrEnum):
+    GUEST = 'guest'
+    BANNED = 'banned'
+    USER = 'user'
+    MONITOR = 'monitor'
+    ADMIN = 'admin'
+
+ROLES = [Roles.GUEST, Roles.BANNED, Roles.USER, Roles.MONITOR, Roles.ADMIN]

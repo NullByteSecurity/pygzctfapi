@@ -1,9 +1,7 @@
 import httpx
 from pygzctfapi import constants, utils, controllers, exceptions
 from urllib.parse import urljoin
-from collections import namedtuple
-
-CREDSTUPLE = namedtuple("Credentials", "login password")
+    
 
 class GZAPI:
 
@@ -23,15 +21,15 @@ class GZAPI:
         if not utils.validate_url(url):
             raise ValueError("Given platform URL is not valid.")
         self._url = url + ('/' if url[-1] != '/' else '')
-        self._credentials = CREDSTUPLE(login, password) if login and password else None
         self._client = httpx.Client()
         self._client.headers= {
             'authority': utils.url_to_domain(url),
             'origin': f'{utils.domain_to_url(url, enclosing=False)}',
         }
         self._client.headers.update(constants.DEFAULT_REQUEST_HEADERS)
-        if self._credentials is not None:
-            self.authenticate()
+        self.authmgr = AuthManager(self, login, password)
+        if self.authmgr.has_credentials:
+            self.authmgr.authenticate()
         
         #Controllers
         self.game = controllers.GameController(self)
@@ -46,78 +44,7 @@ class GZAPI:
             str: The URL of the GZCTF instance.
         """
         return self._url
-    
-    @property
-    def is_authenticated(self) -> bool:
-        """
-        Check if the user is authenticated.
-
-        Returns:
-            bool: True if the user is authenticated, False otherwise.
-        """
-        try:
-            return self.check_auth()
-        except exceptions.NotAuthorizedError:
-            return False
-    
-    def authenticate(self, login: str = None, password: str = None) -> bool:
-        """
-        Authenticate the user with the provided credentials or takes the credentials provided during the object initialization.
-
-        Args:
-            login (str, optional): The login to use for authentication. Defaults to None.
-            password (str, optional): The password to use for authentication. Defaults to None.
-
-        Returns:
-            bool: True if the authentication was successful.
-
-        Raises:
-            exceptions.AuthenticationError: If authentication fails.
-        """
-       
-        if login is not None and password is not None:
-            self._credentials = CREDSTUPLE(login, password)
-        if self._credentials is None:
-            raise exceptions.AuthenticationError("Credentials not provided")
-        json_data = {
-            'userName': self._credentials.login,
-            'password': self._credentials.password,
-        }
-        response = self._client.post(f'{self.platform_url}api/account/login', headers=self._get_referer('account/login?from=/'), json=json_data)
-        if response.status_code != 200:
-            raise exceptions.AuthenticationError(f"Authentication failed with status code {response.status_code}, reason: {response.json()['title']}.")
-        return True
         
-    def check_auth(self, role='user', reauth=True) -> bool:
-        """
-        Check if the user is authorized to perform an action.
-
-        Args:
-            role (str, optional): The role required to perform the action. Defaults to 'user'.
-            reauth (bool, optional): If set to True, the user will be re-authenticated if the session has expired. Defaults to True.
-
-        Returns:
-            bool: True if the user role is equal or higher than the required role.
-
-        Raises:
-            exceptions.NotAuthorizedError: If the user role is lower than the required role or if the authorization check fails.
-        """
-        if self._client.cookies.get('GZCTF_Token') is not None:
-            profile = self._client.get(self._build_url('api/account/profile'), headers=self._get_referer('account/profile'))
-            if profile.status_code == 401:
-                if reauth and self._credentials is not None:
-                    self.authenticate()
-                    return self.check_auth(role=role, reauth=False)
-                raise exceptions.NotAuthorizedError(f"Authorization check failed with status code 401, reason: {profile.json()['title']}.")
-            elif profile.status_code != 200:
-                raise exceptions.NotAuthorizedError(f"Authorization check failed with status code {profile.status_code}, reason: {profile.json()['title']}.")
-            if constants.ROLES.index(role.lower()) > constants.ROLES.index(profile.json()['role'].lower()):
-                raise exceptions.NotAuthorizedError(f'You are not allowed to perform this action. You are {profile.json()["role"]} and you need to be {role.capitalize()} or higher.')
-            else:
-                return True
-        else:
-            raise exceptions.NotAuthorizedError("This action requires authorization. You are not logged in.")
-
     def _build_url(self, *args) -> str:
         """
         Build a URL by joining self.platform_url with the given arguments.
@@ -139,3 +66,125 @@ class GZAPI:
             dict: A dictionary with the referer header
         """
         return { 'referer': self._build_url(path) }
+
+
+class AuthManager:
+    def __init__(self, gzapi: 'GZAPI', login: str = None, password: str = None):
+        self._gzapi = gzapi
+        self.__login = login
+        self.__password = password
+        if self.has_credentials:
+            self.authenticate()
+    
+    @property
+    def credentials(self) -> tuple[str, str]:
+        return self.__login, self.__password
+    
+    @property
+    def has_credentials(self) -> bool:
+        return self.__login is not None and self.__password is not None
+    
+    @property
+    def _client(self) -> httpx.Client:
+        return self._gzapi._client
+    
+    @property
+    def token(self) -> str:
+        return self._client.cookies.get('GZCTF_Token')
+    
+    @token.setter
+    def token(self, token: str):
+        self._client.cookies.set('GZCTF_Token', token)
+    
+    @property
+    def is_authenticated(self) -> bool:
+        return self.get_role(reauth=False) != constants.Roles.GUEST
+    
+    def set_credentials(self, login: str, password: str):
+        """
+        Set the credentials to use for authentication.
+        
+        This method terminates the current session and clears any existing cookies.
+
+        Args:
+            login (str): The login to use for authentication.
+            password (str): The password to use for authentication.
+
+        Returns:
+            None
+        """
+        self.__login = login
+        self.__password = password
+        self._client.cookies.clear()
+
+    def authenticate(self) -> bool:
+        """
+        Authenticate the user with the saved credentials.
+
+        Returns:
+            bool: True if the authentication was successful.
+
+        Raises:
+            exceptions.AuthenticationError: If authentication fails or credentials are not set.
+        """
+       
+        if not self.has_credentials:
+            raise exceptions.AuthenticationError("Credentials are not set.")
+        json_data = {
+            'userName': self.__login,
+            'password': self.__password,
+        }
+        response = self._client.post(f'{self._gzapi.platform_url}api/account/login', headers=self._gzapi._get_referer('account/login?from=/'), json=json_data)
+        if response.status_code != 200:
+            raise exceptions.AuthenticationError(f"Authentication failed with status code {response.status_code}, reason: {response.text}.")
+        return True
+
+    def reauthenticate(self):
+        return self.authenticate()
+    
+    def get_role(self, reauth=True) -> str:
+        """
+        Get the role of the current session.
+
+        Args:
+            reauth (bool, optional): Whether to re-authenticate if the session has expired (only if login and password are set). Defaults to True.
+
+        Returns:
+            str: The role of the currently logged-in user. If the user is not logged in, returns constants.Roles.GUEST
+
+        Raises:
+            exceptions.RequestFailedError: If the request fails with a status code other than 200 or 401.
+        """
+        if self.token is not None:
+            profile = self._client.get(self._gzapi._build_url('api/account/profile'), headers=self._gzapi._get_referer('account/profile'))
+            if profile.status_code == 401:
+                if reauth and self.has_credentials:
+                    self.authenticate()
+                    return self.get_role(reauth=False)
+                else:
+                    return constants.Roles.GUEST
+            elif profile.status_code != 200:
+                raise exceptions.RequestFailedError(message=f"Role retrieval failed with status code {profile.status_code}, reason: {profile.text}.", status_code=profile.status_code, reason=profile.text)
+            return constants.Roles(profile.json()['role'].lower())
+        else:
+            return constants.Roles.GUEST
+    
+    def raise_on_insufficient_role(self, required_role='user', reauth=True) -> bool:
+        """
+        Check if the current session has the required or higher role permissions.
+
+        Args:
+            required_role (str, optional): The required session role. Defaults to 'user'.
+            reauth (bool, optional): Whether to re-authenticate if the session has expired (only if login and password are set). Defaults to True.
+
+        Returns:
+            bool: True if the session role is equal or higher than the required role.
+
+        Raises:
+            exceptions.NotAuthorizedError: If the session role is lower than the required role.
+        """
+        current_role = self.get_role(reauth=reauth)
+        if constants.ROLES.index(current_role) < constants.ROLES.index(required_role.lower()):
+            raise exceptions.NotAuthorizedError(f'You are not allowed to perform this action. You are {current_role.capitalize()} and you need to be {required_role.capitalize()} or higher.')
+        else:
+            return True
