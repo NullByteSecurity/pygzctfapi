@@ -1,9 +1,9 @@
 from abc import abstractmethod, ABC
 from dataclasses import asdict
-from typing import List, Optional, Union
-from pygzctfapi.misc.events import Event, NoticeTrackerEvents
+from typing import Generator, List, Optional, Union
+from pygzctfapi.misc.events import NoticeEvents
 from pygzctfapi.misc.storages import InMemoryStorage
-from pygzctfapi.misc.updates import NoticeUpdate, NoticeUpdateTypes
+from pygzctfapi.misc.updates import BaseUpdate, NoticeUpdate
 from pygzctfapi.models import Notice
 from pygzctfapi import utils
 from threading import Lock
@@ -29,12 +29,13 @@ class BaseTracker(ABC):
 
 class DispatchableTracker(BaseTracker, ABC):
     @abstractmethod
-    def dispatch_updates(self):
+    def dispatch_updates(self) -> Generator[tuple[str, BaseUpdate], None, None]:
         raise NotImplementedError
 
 
 class NoticeTracker(DispatchableTracker):
     dispatcher: Optional['TrackerDispatcher'] = None
+    
     def __init__(self, game: 'Game', storage: 'StorageBaseClass'=None, ignore_old_notices: bool=True, tracker_id: Union[str, int]=1):
         """
         Initialize the NoticeTracker.
@@ -113,6 +114,17 @@ class NoticeTracker(DispatchableTracker):
     
     #! more testing and review needed
     def get_updates(self) -> List[NoticeUpdate]:
+        """
+        Get a list of updates to notices since the last call of get_updates() (or start of the program).
+
+        This method will return a list of NoticeUpdate objects, each representing a change to a notice.
+        The list will be sorted by notice ID.
+
+        The method will also update the internal state of the tracker, so that the next call will return updates since the last call.
+
+        Returns:
+            List[NoticeUpdate]: A list of NoticeUpdate objects.
+        """
         with self._lock:
             new_notices = self._game.notices()
             old_notices = self._old_notices
@@ -123,19 +135,19 @@ class NoticeTracker(DispatchableTracker):
             for common in diff.common:
                 if new_as_dict[common] != old_as_dict[common]:
                     updates.append(NoticeUpdate(
-                        update_type=NoticeUpdateTypes.EDITED,
+                        event=NoticeEvents.EDITED,
                         new_notice=new_as_dict[common],
                         old_notice=old_as_dict[common],
                     ))
             for unique1 in diff.unique1:
                 updates.append(NoticeUpdate(
-                    update_type=NoticeUpdateTypes.NEW,
+                    event=NoticeEvents.NEW,
                     new_notice=new_as_dict[unique1],
                     old_notice=None,
                 ))
             for unique2 in diff.unique2:
                 updates.append(NoticeUpdate(
-                    update_type=NoticeUpdateTypes.DELETED,
+                    event=NoticeEvents.DELETED,
                     new_notice=None,
                     old_notice=old_as_dict[unique2],
                 ))
@@ -145,6 +157,20 @@ class NoticeTracker(DispatchableTracker):
             self._old_notices = new_notices
             return updates
     
-    def dispatch_updates(self):
+    def dispatch_updates(self) -> Generator[tuple[str, NoticeUpdate], None, None]:
+        """
+        A generator that yields a tuple with event name and NoticeUpdate object.
+        The generator will yield updates since the last call of dispatch_updates() or get_updates().
+
+        The event name is the name of the event as string, and the NoticeUpdate object
+        contains information about the update. The events are NoticeEvents.NEW, NoticeEvents.EDITED,
+        and NoticeEvents.DELETED.
+
+        The method will also update the internal state of the tracker, so that the next call will return
+        updates since the last call.
+
+        Yields:
+            tuple: A tuple containing the event name and a NoticeUpdate object.
+        """
         for update in self.get_updates():
-            yield Event(event=NoticeTrackerEvents.__dict__[update.update_type].fget(None), data=update)
+            yield (NoticeEvents(update.event), update)

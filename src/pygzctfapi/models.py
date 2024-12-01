@@ -106,8 +106,8 @@ class Game(UpdateableModel):
     limit: int
     practiceMode: bool
     writeupRequired: bool
-    organization: str
-    organizations: str
+    division: str
+    divisions: str
     poster: str
     teamName: str
     

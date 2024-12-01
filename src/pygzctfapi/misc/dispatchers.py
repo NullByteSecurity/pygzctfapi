@@ -2,7 +2,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, List, Union
 from pygzctfapi import exceptions
-from pygzctfapi.misc.routers import BaseRouter
+from pygzctfapi.misc.routers import Router
 from pygzctfapi.misc.trackers import DispatchableTracker
 
 if TYPE_CHECKING:
@@ -38,16 +38,16 @@ class BaseDispatcher:
     
 
 class TrackerDispatcher(BaseDispatcher):
-    def __init__(self, routers: Union['BaseRouter', List['BaseRouter']] = None, trackers: Union['DispatchableTracker', List['DispatchableTracker']] = None, polling_interval: int=10, errors_treshold: int=10):
+    def __init__(self, routers: Union['Router', List['Router']] = None, trackers: Union['DispatchableTracker', List['DispatchableTracker']] = None, polling_interval: int=10, errors_treshold: int=10):
         if routers is None:
             routers = []
         if trackers is None:
             trackers = []
-        if isinstance(routers, BaseRouter):
+        if isinstance(routers, Router):
             routers = [routers]
         elif isinstance(routers, List):
             for router in routers:
-                if not isinstance(router, BaseRouter):
+                if not isinstance(router, Router):
                     raise TypeError(f"Router {router} is not a valid router.")
         else:
             raise TypeError(f"Router {routers} is not a valid router.")
@@ -91,17 +91,17 @@ class TrackerDispatcher(BaseDispatcher):
         else:
             raise exceptions.TrackerNotRegisteredError(tracker=tracker)
     
-    def add_router(self, router: 'BaseRouter'):
+    def add_router(self, router: 'Router'):
         self._raise_if_running()
         if router not in self._routers:
-            if isinstance(router, BaseRouter):
+            if isinstance(router, Router):
                 self._routers.append(router)
             else:
                 raise TypeError(f"Router {router} is not a valid router.")
         else:
             raise exceptions.RouterAlreadyRegisteredError(router=router)
     
-    def remove_router(self, router: 'BaseRouter'):
+    def remove_router(self, router: 'Router'):
         self._raise_if_running()
         if router in self._routers:
             self._routers.remove(router)
@@ -146,8 +146,8 @@ class TrackerDispatcher(BaseDispatcher):
                     events = tracker.dispatch_updates()
                     for event in events:
                         for router in self._routers:
-                            if event.event in router.events:
-                                router.trigger_event(event)
+                            # if event[0] in router._handlers:
+                                router.trigger_event(*event)
                 self._consecutive_errors = 0
                 time.sleep(self._polling_interval)
             except exceptions.GZException as e:

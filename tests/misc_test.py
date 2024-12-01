@@ -4,7 +4,7 @@ from pygzctfapi import GZAPI
 from pygzctfapi.misc import routers
 from icecream import ic
 
-from pygzctfapi.misc.events import NoticeTrackerEvents
+from pygzctfapi.misc.events import NoticeEvents
 from pygzctfapi.misc.updates import NoticeUpdate
 
 url = "https://games.nullbyte.pro/"
@@ -168,15 +168,15 @@ def test_notices_tracker():
     storage = storages.InMemoryStorage()
     
     tracker = trackers.NoticeTracker(game=game, storage=storage, ignore_old_notices=True)
-    router = routers.NoticeTrackerRouter()
+    router = routers.Router(NoticeEvents)
     
-    @router.handle(router.events.any)
-    def any_handler(event: NoticeUpdate):
-        print(f"Handled update: {event.summary}")
+    @router.handle(*NoticeEvents)
+    def any_handler(event: str, update: NoticeUpdate):
+        print(f"Handled update: {update.summary}")
     
     dispatcher = dispatchers.TrackerDispatcher(routers=router, trackers=tracker, polling_interval=1)
     dispatcher.start()
-    #time.sleep(90)
+    time.sleep(15)
     dispatcher.stop()
     
     

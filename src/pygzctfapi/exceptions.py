@@ -1,8 +1,9 @@
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pygzctfapi.misc.trackers import DispatchableTracker
-    from pygzctfapi.misc.routers import BaseRouter
+    from pygzctfapi.misc.routers import Router
 
 
 class Raiser:
@@ -78,11 +79,29 @@ class HandlerNotRegisteredError(RouterError):
         self.handler = handler
         super().__init__(message.format(handler=handler.__name__ if isinstance(handler, callable) else handler))
 
-class EventTypeError(RouterError):
-    """Raised when a event type is not valid."""
-    def __init__(self, message="Event type [{event_type}] is not valid for the router {router}.", event_type: str = None, router: 'BaseRouter' = None):
-        self.event_type = event_type
-        super().__init__(message.format(event_type=event_type, router=router.__class__.__name__))
+class EventNotExistsError(RouterError):
+    """Raised when an event does not exist in the router."""
+    def __init__(self, message="Event [{event}] does not exist in the router {router}.", event: str = None, router: 'Router' = None):
+        self.event = event
+        super().__init__(message.format(event=event, router=router.__class__.__name__))
+
+class EventsIntersectionError(RouterError):
+    """Raised when any of the given event enums intersect with the existing events in the router."""
+    def __init__(self, message="Events [{intersection}] intersect with the existing events in the router {router}.", intersection: set = None, router: 'Router' = None):
+        self.intersection = intersection
+        super().__init__(message.format(intersection=intersection, router=router.__class__.__name__))
+
+class EventEnumExistsError(RouterError):
+    """Raised when an event enum already exists in the router."""
+    def __init__(self, message="Event enum [{enum}] already exists in the router {router}.", enum: StrEnum = None, router: 'Router' = None):
+        self.enum = enum
+        super().__init__(message.format(enum=enum, router=router.__class__.__name__))
+
+class EventEnumNotExistsError(RouterError):
+    """Raised when an event enum does not exist in the router."""
+    def __init__(self, message="Event enum [{enum}] does not exist in the router {router}.", enum: StrEnum = None, router: 'Router' = None):
+        self.enum = enum
+        super().__init__(message.format(enum=enum, router=router.__class__.__name__))
 
 
 class DispatcherError(GZException):
@@ -109,12 +128,12 @@ class DispatcherIsRunningError(DispatcherError):
 
 class RouterAlreadyRegisteredError(DispatcherError):
     """Raised when a router is already registered."""
-    def __init__(self, message="Router [{router}] already registered.", router: 'BaseRouter' = None):
+    def __init__(self, message="Router [{router}] already registered.", router: 'Router' = None):
         super().__init__(message.format(handler=router.__class__.__name__ if isinstance(router, object) else router))
 
 class RouterNotRegisteredError(DispatcherError):
     """Raised when a router is not registered."""
-    def __init__(self, message="Router [{router}] not registered.", router: 'BaseRouter' = None):
+    def __init__(self, message="Router [{router}] not registered.", router: 'Router' = None):
         super().__init__(message.format(router=router.__class__.__name__ if isinstance(router, object) else router))
 
 class TrackerAlreadyRegisteredError(DispatcherError):
